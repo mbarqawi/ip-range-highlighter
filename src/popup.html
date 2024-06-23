@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Range Analyzer</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <h1>IP Range Analyzer</h1>
+        <div id="ip-range-inputs">
+            <div class="ip-range">
+                <input type="text" class="ip-range-input" placeholder="Enter IP range (e.g., 192.168.1.0/24)">
+                <button class="remove-range">&times;</button>
+            </div>
+        </div>
+        <button id="add-range">Add another range</button>
+        <button id="analyze-ranges">Analyze</button>
+        <div id="results">
+            <h2>Results</h2>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>IP Range</th>
+                        <th>Start IP</th>
+                        <th>End IP</th>
+                        <th>Size</th>
+                        <th>Overlap</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.ip-range {
+    background-color: rgb(20, 202, 11);
+    border-radius: 5px; /* Curved corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+    padding: 2px 4px; /* Some padding for better appearance */
+    cursor: alias;
+  }
+  

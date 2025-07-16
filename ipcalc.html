@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic IP Subnet Checker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full">
+        <h1 class="text-2xl font-bold mb-4 text-center">Dynamic IP Subnet Checker</h1>
+        <div class="mb-4">
+            <label for="ipInput" class="block text-sm font-medium text-gray-700">Enter IP Addresses (one per line):</label>
+            <textarea id="ipInput" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" rows="5" placeholder="e.g., 172.16.104.6&#10;172.16.104.4"></textarea>
+        </div>
+        <div class="mb-4">
+            <label for="subnetInput" class="block text-sm font-medium text-gray-700">Enter Subnets (name: address/mask, one per line):</label>
+            <textarea id="subnetInput" class="mt-1 block w-full p-2 border border-gray-300 rounded-md" rows="5" placeholder="e.g., cx1: 172.17.0.0/16&#10;lasubnet: 172.16.104.64/26"></textarea>
+        </div>
+        <button onclick="generateTable()" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Check Subnets</button>
+        <div id="error" class="text-red-500 mt-2 hidden"></div>
+        <table id="resultsTable" class="w-full border-collapse border border-gray-300 mt-4 hidden">
+            <thead id="tableHeader"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // Function to convert IP to number
+        function ipToNumber(ip) {
+            return ip.split('.').reduce((acc, octet, index) => acc + parseInt(octet) * Math.pow(256, 3 - index), 0);
+        }
+
+        // Function to convert number to IP
+        function numberToIp(num) {
+            return [
+                (num >>> 24) & 255,
+                (num >>> 16) & 255,
+                (num >>> 8) & 255,
+                num & 255
+            ].join('.');
+        }
+
+        // Function to get subnet range
+        function getSubnetRange(subnet, mask) {
+            const subnetNum = ipToNumber(subnet);
+            const maskBits = parseInt(mask);
+            const maskNum = ~((1 << (32 - maskBits)) - 1);
+            const startIp = subnetNum & maskNum;
+            const endIp = startIp + (1 << (32 - maskBits)) - 1;
+            return { start: numberToIp(startIp), end: numberToIp(endIp) };
+        }
+
+        // Function to check if IP is in subnet
+        function isIpInSubnet(ip, subnet, mask) {
+            const ipNum = ipToNumber(ip);
+            const subnetNum = ipToNumber(subnet);
+            const maskBits = parseInt(mask);
+            const maskNum = ~((1 << (32 - maskBits)) - 1);
+            return (ipNum & maskNum) === (subnetNum & maskNum);
+        }
+
+        // Function to validate IP address
+        function isValidIp(ip) {
+            const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+            const match = ip.match(ipRegex);
+            if (!match) return false;
+            return match.slice(1).every(octet => parseInt(octet) >= 0 && parseInt(octet) <= 255);
+        }
+
+        // Function to validate subnet input
+        function isValidSubnet(subnetStr) {
+            const subnetRegex = /^(.+):\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/;
+            const match = subnetStr.match(subnetRegex);
+            if (!match) return false;
+            const [, name, ip, mask] = match;
+            if (!name.trim() || !isValidIp(ip)) return false;
+            const maskNum = parseInt(mask);
+            return maskNum >= 0 && maskNum <= 32;
+        }
+
+        // Function to generate the table
+        function generateTable() {
+            const ipInput = document.getElementById('ipInput').value.trim();
+            const subnetInput = document.getElementById('subnetInput').value.trim();
+            const errorDiv = document.getElementById('error');
+            const table = document.getElementById('resultsTable');
+            const tableHeader = document.getElementById('tableHeader');
+            const tableBody = document.getElementById('tableBody');
+
+            // Clear previous content
+            errorDiv.innerHTML = '';
+            errorDiv.classList.add('hidden');
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = '';
+            table.classList.add('hidden');
+
+            // Parse IPs
+            const ipAddresses = ipInput.split('\n').map(ip => ip.trim()).filter(ip => ip);
+            if (ipAddresses.length === 0) {
+                errorDiv.innerHTML = 'Please enter at least one IP address.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            if (!ipAddresses.every(isValidIp)) {
+                errorDiv.innerHTML = 'One or more IP addresses are invalid.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Parse subnets
+            const subnetLines = subnetInput.split('\n').map(line => line.trim()).filter(line => line);
+            if (subnetLines.length === 0) {
+                errorDiv.innerHTML = 'Please enter at least one subnet.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            const subnets = subnetLines.map(line => {
+                const match = line.match(/^(.+):\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/);
+                if (match) {
+                    return { name: match[1].trim(), address: match[2], mask: match[3] };
+                }
+                return null;
+            }).filter(subnet => subnet);
+            if (subnets.length !== subnetLines.length) {
+                errorDiv.innerHTML = 'One or more subnets are invalid. Use format: name: address/mask';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Generate table header
+            let headerRow = '<tr class="bg-gray-200"><th class="border border-gray-300 p-2">IP Address / Subnet</th>';
+            subnets.forEach(subnet => {
+                headerRow += `<th class="border border-gray-300 p-2">${subnet.name} (${subnet.address}/${subnet.mask})</th>`;
+            });
+            headerRow += '</tr>';
+            tableHeader.innerHTML = headerRow;
+
+            // Add subnet range row
+            let rangeRow = '<tr><td class="border border-gray-200 p-2 font-bold">Subnet Range</td>';
+            subnets.forEach(subnet => {
+                const range = getSubnetRange(subnet.address, subnet.mask);
+                rangeRow += `<td class="border border-gray-300 p-2">${range.start} - ${range.end}</td>`;
+            });
+            rangeRow += '</tr>';
+            tableBody.innerHTML += rangeRow;
+
+            // Add IP check rows
+            ipAddresses.forEach(ip => {
+                let row = `<tr><td class="border border-gray-300 p-2">${ip}</td>`;
+                subnets.forEach(subnet => {
+                    const isInSubnet = isIpInSubnet(ip, subnet.address, subnet.mask);
+                    row += `<td class="border border-gray-300 p-2 text-center">${isInSubnet ? '✅ Yes' : '❌ No'}</td>`;
+                });
+                row += '</tr>';
+                tableBody.innerHTML += row;
+            });
+
+            table.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
